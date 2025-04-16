@@ -2,16 +2,14 @@
 This is a ROS2 node to simulate a sensor
 '''
 
-import json
+import yaml
 from math import cos,sin
-import numpy as np
 
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray,String
 from tf_transformations import euler_from_quaternion
-
 
 class SensorNode(Node):
     '''
@@ -38,8 +36,8 @@ class SensorNode(Node):
         # self.published_msg = None
 
         self.positions = {} # 存储机器人的位置字典
-        self.adjacency_matrix = self.load_global_params('adjacency_matrix')  # 读取邻接矩阵
-        self.offset = self.load_global_params('offset')  # 读取偏移量
+        self.adjacency_matrix = self.load_config('adjacency_matrix')  # 读取邻接矩阵
+        self.offset = self.load_config('offset')  # 读取偏移量
 
         # 创建定时器，控制消息发布的时间间隔
         self.last_publish_time = self.get_clock().now()
@@ -47,14 +45,17 @@ class SensorNode(Node):
         self.origin_time = self.get_clock().now()
         self.current_time = self.get_clock().now()
 
-    def load_global_params(self, param_name):
+        self.get_logger().info("Sensor node started.")
+
+    def load_config(self, param_name):
         '''
-        读取 JSON 文件中对应全局变量
+        读取yaml文件中对应全局变量
         '''
-        file_path = 'GlobalParams.json'
-        with open(file_path, 'r', encoding='utf-8') as file:
-            f = json.load(file)
-            return np.array(f[param_name])
+        file_path = '/home/zenos/ROS2WS/tb3_formation/src/'+\
+            'formation_controller/formation_controller/config.yml'
+        with open(file_path, 'r',encoding='UTF-8') as file:
+            config = yaml.safe_load(file)
+        return config[param_name]
 
     def odom_callback(self, msg: Odometry):
         '''
@@ -101,7 +102,7 @@ class SensorNode(Node):
         # 计算所有的相对位置，注意区分全局坐标系和个体坐标系
         for i in range(1, 5):  # robot_id 1234
             for j in range(1, 5):
-                if self.adjacency_matrix[i-1, j-1] == 1:
+                if self.adjacency_matrix[i-1][j-1] == 1:
                     # 识别到邻接矩阵中的边a_ij
                     x_i, y_i, yaw_i = self.positions[i]
                     x_j, y_j, _ = self.positions[j]
