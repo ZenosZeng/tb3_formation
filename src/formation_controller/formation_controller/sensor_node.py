@@ -1,9 +1,8 @@
 '''
 This is a ROS2 node to simulate a sensor
 '''
-
-import yaml
 from math import cos,sin
+import yaml
 
 import rclpy
 from rclpy.node import Node
@@ -75,16 +74,8 @@ class SensorNode(Node):
                                     position.y+self.offset*sin(yaw),
                                     yaw)
 
-        # 按照1000Hz发布sensor数据
-        self.current_time = self.get_clock().now()
-
-        if (self.current_time - self.last_publish_time).nanoseconds >= 1e6:  # 1ms -> 1000Hz
-            self.last_publish_time = self.current_time
-            self.calculate_sensor_data()
-
-        # if (self.current_time - self.last_print_time).nanoseconds >= 1e9:  # 1秒 -> 1Hz
-        #     self.last_print_time = self.current_time
-        #     self.print_info()
+        # 发布sensor数据
+        self.calculate_sensor_data()
 
     def calculate_sensor_data(self):
         '''
@@ -139,14 +130,26 @@ class SensorNode(Node):
         self.publisher_sensor_data.publish(sensor_data_msg)
         self.publisher_sensor_info.publish(sensor_info_msg)
 
+        # 计算传感器的发布频率
+        self.current_time = self.get_clock().now()
+        dt = (self.current_time - self.last_publish_time).nanoseconds/1e9
+        self.last_publish_time = self.current_time
+        if dt<1e-9:
+            freq = 0
+        else:
+            freq = round(1/dt,2)
+
         # 按照0.5Hz打印传感器数据
-        if (self.current_time - self.last_print_time).nanoseconds >= 2e9:
+        t_since_last_print = \
+            (self.current_time - self.last_print_time).nanoseconds/1e9
+        if t_since_last_print >= 2:
             self.last_print_time = self.current_time
-            time_diff = self.current_time.nanoseconds - self.origin_time.nanoseconds
-            self.get_logger().info(f"**********{time_diff/1e9:.2f}s**********")
+            t_since_origin = \
+                (self.current_time.nanoseconds - self.origin_time.nanoseconds)/1e9
+            self.get_logger().info(f"**********{t_since_origin:.2f}s**********")
             self.get_logger().info(f"Sensor data: {sensor_data_msg.data}")
             self.get_logger().info(f"Sensor info: {sensor_info_msg.data}")
-
+            self.get_logger().info(f"Sensor freq: {freq} Hz")
 
 def main(args=None):
     '''
