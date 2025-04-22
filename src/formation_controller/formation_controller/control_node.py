@@ -54,6 +54,10 @@ def u2vw_global(u,theta_agent,offset):
     theta_err = theta_agent-theta_d
     v = m*cos(theta_err)
     omega = -m*sin(theta_err)/offset
+
+    # v = np.clip(v,-1,1)
+    # omega = np.clip(omega,0.2,0.2)
+
     return np.array([v,omega])
 
 def u2vw_local(u,offset):
@@ -111,15 +115,15 @@ class ControlNode(Node):
 
         # 创建四个tb的cmd发布器
         self.cmd_publishers = {
-            1: self.create_publisher(Twist, '/TB3_1/cmd_vel', 10),
-            2: self.create_publisher(Twist, '/TB3_2/cmd_vel', 10),
-            3: self.create_publisher(Twist, '/TB3_3/cmd_vel', 10),
-            4: self.create_publisher(Twist, '/TB3_4/cmd_vel', 10)
+            1: self.create_publisher(Twist, '/robot_1/cmd_vel', 10),
+            2: self.create_publisher(Twist, '/robot_2/cmd_vel', 10),
+            3: self.create_publisher(Twist, '/robot_3/cmd_vel', 10),
+            4: self.create_publisher(Twist, '/robot_4/cmd_vel', 10)
         }
 
-        self.adjacency_matrix = self.load_config('adjacency_matrix')  # 读取邻接矩阵
-        self.distance_matrix = self.load_config('desired_distance_matrix') # 读取距离矩阵
-        self.offset = self.load_config('offset')  # 读取偏移量
+        self.adjacency_matrix = self.load_config('ADJACENCY_MATRIX')  # 读取邻接矩阵
+        self.distance_matrix = self.load_config('DESIRED_DISTANCE_MATRIX') # 读取距离矩阵
+        self.offset = self.load_config('OFFSET')  # 读取偏移量
 
         # 创建定时器，控制消息发布的时间间隔
         self.last_publish_time = self.get_clock().now()
@@ -199,11 +203,18 @@ class ControlNode(Node):
             其中，`d_12` 表示 leader 和 co-leader 之间的固定距离。
         """
 
-        vx = 1*cos(0.2*t)
-        vy = 0.6*sin(0.2*t)
-        dtheta = 3/5*(1/cos(0.4*t)**2)*0.4
+        # 调整椭圆轨迹的参数
+        a, b = 0.3, 0.2  # 椭圆的长轴和短轴，增大a和b可以放大椭圆
+        omega = 0.1  # 椭圆运动的角速度，减小omega可以增加周期
+
+        vx = a * cos(omega * t)
+        vy = b * sin(omega * t)
+
         theta = atan2(vy,vx)
+        dtheta = b/a*(1/cos(omega*t)**2)*omega
+
         vd = np.array([vx,vy])
+
         po_d = [d_12*cos(theta),d_12*sin(theta)]
         po_d_dot = [-d_12*sin(theta)*dtheta,d_12*cos(theta)*dtheta]
 
@@ -239,21 +250,21 @@ class ControlNode(Node):
         vd, po_d, po_d_dot = self.reference_motion(self.get_t_since_origin(),d_12=2)
 
         # 控制增益
-        k=0.1
+        k=1
         alpha=10
         beta=0
 
         # 控制器中间变量
         r = [ [0,0] for i in range(self.num_robots)]
-        for i in range(1,self.num_robots):  # 遍历所有除了领导者的agent
-            for j in range(self.num_robots):  # 逐个检查是否是邻居
+        for i in range(1,self.num_robots):  # 遍历所有除了领导者的agent 1-3
+            for j in range(self.num_robots):  # 逐个检查是否是i的邻居 0-3
                 if self.adjacency_matrix[i][j]==0 or i==j :  # 不是邻居
                     continue
                 else: # 是邻居
-                    if i==1: # co-leader 读取的相对位置是全局坐标
-                        p_ij = np.array([dic[f'x_{i+1}{j+1}'],dic[f'y_{i+1}{j+1}']])
-                    else: # followers  读取的相对位置是local坐标
-                        p_ij = np.array([dic[f'x_{i+1}{j+1}_local'],dic[f'y_{i+1}{j+1}_local']])
+                    # if i==1: # co-leader 读取的相对位置是全局坐标
+                    p_ij = np.array([dic[f'x_{i+1}{j+1}'],dic[f'y_{i+1}{j+1}']])
+                    # else: # followers  读取的相对位置是local坐标
+                    #     p_ij = np.array([dic[f'x_{i+1}{j+1}_local'],dic[f'y_{i+1}{j+1}_local']])
 
                     d = self.distance_matrix[i][j] # desired distance
                     p_ij_m = np.linalg.norm(p_ij) # L2 norm
@@ -261,27 +272,80 @@ class ControlNode(Node):
                     r_j = p_ij*sigma_ij
                     r[i] = np.add(r[i],r_j)
 
+        # 方向误差
         po = np.array([-dic['x_21'],-dic['y_21']]) # p1-p2
         po_bar = po-po_d
 
         # SI控制律设计
-        v_max = 1
-        for i in range(self.num_robots):
-            if i==0:
-                u[i] = vd
-            elif i==1:
-                eta = alpha*np.dot(po_bar,po_d_dot)/(np.linalg.norm(r[i]-alpha*po_bar)**2)
-                u[i] = -(k-eta)*(r[i]-alpha*po_bar) + vd
-                u[i] = saturation(u[i],v_max)
-            else:
-                u[i] = -k*r[i] - beta*sign(r[i])
-                u[i] = saturation(u[i],v_max)
+        control_mode = 'rigid'
+
+        if control_mode=='rigid': # 刚性编队定向跟踪控制器
+            v_max = 0.5
+            for i in range(self.num_robots):
+                if i==0:
+                    u[i] = vd
+                elif i==1:
+                    eta = alpha*np.dot(po_bar,po_d_dot)/ \
+                        (np.linalg.norm(r[i]-alpha*po_bar)**2)
+                    u[i] = -(k-eta)*(r[i]-alpha*po_bar) + vd
+                    u[i] = saturation(u[i],v_max)
+                else:
+                    u[i] = -k*r[i] - beta*sign(r[i])
+                    u[i] = saturation(u[i],v_max)
+        elif control_mode == 'rp': # 相对位置控制器，测试用
+            v_max = 0.5
+            for i in range(self.num_robots):
+                if i==0:
+                    u[i] = vd
+                elif i==1:
+                    p_ij = np.array([dic['x_21'],dic['y_21']])
+                    desired_p_ij = [-2,0]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar
+                    u[i] = saturation(u[i],v_max)
+                elif i==2:
+                    p_ij = np.array([dic['x_32'],dic['y_32']])
+                    desired_p_ij = [0,-1]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar
+                    u[i] = saturation(u[i],v_max)
+                elif i==3:
+                    p_ij = np.array([dic['x_41'],dic['y_41']])
+                    desired_p_ij = [0,-1]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar
+                    u[i] = saturation(u[i],v_max)
+        elif control_mode == 'rp_feedforward': # 相对位置控制器+vd前馈
+            v_max = 0.5
+            for i in range(self.num_robots):
+                if i==0:
+                    u[i] = vd
+                elif i==1:
+                    p_ij = np.array([dic['x_21'],dic['y_21']])
+                    desired_p_ij = [-2,0]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar + vd
+                    u[i] = saturation(u[i],v_max)
+                elif i==2:
+                    p_ij = np.array([dic['x_32'],dic['y_32']])
+                    desired_p_ij = [0,-1]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar + vd
+                    u[i] = saturation(u[i],v_max)
+                elif i==3:
+                    p_ij = np.array([dic['x_41'],dic['y_41']])
+                    desired_p_ij = [0,-1]
+                    p_ij_bar = p_ij - desired_p_ij
+                    u[i] = -k*p_ij_bar + vd
+                    u[i] = saturation(u[i],v_max)
 
         # Unicycle控制律映射
         vnw[0] = u2vw_global(u[0],dic['yaw_1'],self.offset)
         vnw[1] = u2vw_global(u[1],dic['yaw_2'],self.offset)
-        vnw[2] = u2vw_local(u[2],self.offset)
-        vnw[3] = u2vw_local(u[3],self.offset)
+        vnw[2] = u2vw_global(u[2],dic['yaw_3'],self.offset)
+        vnw[3] = u2vw_global(u[3],dic['yaw_4'],self.offset)
+        # vnw[2] = u2vw_local(u[2],self.offset)
+        # vnw[3] = u2vw_local(u[3],self.offset)
 
         # 生成并发布每个车的twist话题
         for i,vw in enumerate(vnw):

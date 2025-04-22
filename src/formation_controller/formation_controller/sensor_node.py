@@ -19,13 +19,13 @@ class SensorNode(Node):
 
         # 订阅四个 TurtleBot3 的里程计话题
         self.subscriber_turtlebot1 = \
-            self.create_subscription(Odometry, '/TB3_1/odom', self.odom_callback, 1)
+            self.create_subscription(Odometry, '/robot_1/odom', self.odom_callback, 1)
         self.subscriber_turtlebot2 = \
-            self.create_subscription(Odometry, '/TB3_2/odom', self.odom_callback, 1)
+            self.create_subscription(Odometry, '/robot_2/odom', self.odom_callback, 1)
         self.subscriber_turtlebot3 = \
-            self.create_subscription(Odometry, '/TB3_3/odom', self.odom_callback, 1)
+            self.create_subscription(Odometry, '/robot_3/odom', self.odom_callback, 1)
         self.subscriber_turtlebot4 = \
-            self.create_subscription(Odometry, '/TB3_4/odom', self.odom_callback, 1)
+            self.create_subscription(Odometry, '/robot_4/odom', self.odom_callback, 1)
 
         # 创建2个发布者,分别发布data和info  info用来储存变量名称，逗号分隔
         self.publisher_sensor_data = \
@@ -35,8 +35,8 @@ class SensorNode(Node):
         # self.published_msg = None
 
         self.positions = {} # 存储机器人的位置字典
-        self.adjacency_matrix = self.load_config('adjacency_matrix')  # 读取邻接矩阵
-        self.offset = self.load_config('offset')  # 读取偏移量
+        self.adjacency_matrix = self.load_config('ADJACENCY_MATRIX')  # 读取邻接矩阵
+        self.offset = self.load_config('OFFSET')  # 读取偏移量
 
         # 创建定时器，控制消息发布的时间间隔
         self.last_publish_time = self.get_clock().now()
@@ -60,7 +60,7 @@ class SensorNode(Node):
         '''
         里程计回调函数
         '''
-        robot_id = int(msg.header.frame_id.split('_')[1][0]) # 读取机器人ID,原始数据/TB3_1/odom
+        robot_id = int(msg.header.frame_id.split('_')[1][0]) # 读取机器人ID,原始数据/robot_1/odom
 
         position = msg.pose.pose.position # 提取位置 xyz
         orientation_q = msg.pose.pose.orientation  # 提取四元数 xyzw
@@ -100,18 +100,18 @@ class SensorNode(Node):
                     x_ij = x_i - x_j
                     y_ij = y_i - y_j
 
-                    if i<=2: # leader or co-leader
-                        # 计算全局坐标系下的相对位置
-                        sensor_data.append([x_ij, y_ij])
-                        sensor_info.append(f"x_{i}{j}")
-                        sensor_info.append(f"y_{i}{j}")
-                    else: # followers
-                        # 计算个体坐标系下的相对位置
-                        x_ij_local = x_ij * cos(yaw_i) + y_ij * sin(yaw_i)
-                        y_ij_local = -x_ij * sin(yaw_i) + y_ij * cos(yaw_i)
-                        sensor_data.append([x_ij_local, y_ij_local])
-                        sensor_info.append(f"x_{i}{j}_local")
-                        sensor_info.append(f"y_{i}{j}_local")
+                    # if i<=2: # leader or co-leader
+                    # 计算全局坐标系下的相对位置
+                    sensor_data.append([x_ij, y_ij])
+                    sensor_info.append(f"x_{i}{j}")
+                    sensor_info.append(f"y_{i}{j}")
+                    # else: # followers
+                    #     # 计算个体坐标系下的相对位置
+                    #     x_ij_local = x_ij * cos(yaw_i) + y_ij * sin(yaw_i)
+                    #     y_ij_local = -x_ij * sin(yaw_i) + y_ij * cos(yaw_i)
+                    #     sensor_data.append([x_ij_local, y_ij_local])
+                    #     sensor_info.append(f"x_{i}{j}_local")
+                    #     sensor_info.append(f"y_{i}{j}_local")
 
         # 记录所有车的yaw角
         for i in range(1, 5):
