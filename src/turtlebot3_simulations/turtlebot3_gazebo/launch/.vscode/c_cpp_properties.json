@@ -1,0 +1,26 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/zenos/myws_formation/install/turtlebot3_fake_node/include/**",
+        "/home/zenos/myws_formation/install/turtlebot3_msgs/include/**",
+        "/home/zenos/myws_formation/install/turtlebot3_gazebo/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/zenos/myws_formation/src/turtlebot3/turtlebot3_node/include/**",
+        "/home/zenos/myws_formation/src/turtlebot3_simulations/turtlebot3_fake_node/include/**",
+        "/home/zenos/myws_formation/src/turtlebot3_simulations/turtlebot3_gazebo/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
