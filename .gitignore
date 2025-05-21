@@ -7,4 +7,4 @@
 # Optionally, ignore other files you don't want to track
 *.pyc
 *.pyo
-
+*.vscode

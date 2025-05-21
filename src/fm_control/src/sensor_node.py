@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray,String
 from tf_transformations import euler_from_quaternion
 
-CONFIG_PATH = '/home/zenos/workspace_ros2/tb3_formation/config/formation_config.yml'
+CONFIG_PATH = '/home/zenos/ws/tb3_formation/config/formation_config.yml'
 def get_config_para(param):
     '''
     加载全局config文件中的参数，用绝对路径
@@ -43,8 +43,8 @@ class SensorNode(Node):
 
         # 初始化容器和config参数
         self.positions = {} # 存储机器人的位置字典
-        self.adjacency_matrix = get_config_para('ADJACENCY_MATRIX')  # 读取邻接矩阵
-        self.offset = get_config_para('OFFSET')  # 读取偏移量
+        self._adjacency_matrix = get_config_para('ADJACENCY_MATRIX')  # 读取邻接矩阵
+        self._offset = get_config_para('OFFSET')  # 读取偏移量
         self.get_logger().info("Config loaded.")
 
         # 创建定时器，控制消息发布的时间间隔
@@ -65,13 +65,19 @@ class SensorNode(Node):
         orientation_q = msg.pose.pose.orientation  # 提取四元数 xyzw
 
         # 将四元数转换为欧拉角
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        orientation_list = [orientation_q.x, orientation_q.y,
+                            orientation_q.z, orientation_q.w]
         _, _, yaw = euler_from_quaternion(orientation_list)  # 提取yaw角（车的\theta角，x轴逆时针为正）
 
         # 存储位置和方向（带有offset）
-        self.positions[robot_id] = (position.x+self.offset*cos(yaw),
-                                    position.y+self.offset*sin(yaw),
+        self.positions[robot_id] = (position.x+self._offset*cos(yaw),
+                                    position.y+self._offset*sin(yaw),
                                     yaw)
+
+        # 存储位置和方向
+        # self.positions[robot_id] = (position.x,
+        #                             position.y,
+        #                             yaw)
 
         # 发布sensor数据
         self.calculate_sensor_data()
@@ -92,7 +98,7 @@ class SensorNode(Node):
         # 计算所有的相对位置，注意区分全局坐标系和个体坐标系
         for i in range(1, 5):  # robot_id 1234
             for j in range(1, 5):
-                if self.adjacency_matrix[i-1][j-1] == 1:
+                if self._adjacency_matrix[i-1][j-1] == 1:
                     # 识别到邻接矩阵中的边a_ij
                     x_i, y_i, yaw_i = self.positions[i]
                     x_j, y_j, _ = self.positions[j]
@@ -101,7 +107,7 @@ class SensorNode(Node):
 
                     # if i<=2: # leader or co-leader
                     # 计算全局坐标系下的相对位置
-                    sensor_data.append([x_ij, y_ij])
+                    sensor_data.append([round(x_ij,4), round(y_ij,4)])
                     sensor_info.append(f"x_{i}{j}")
                     sensor_info.append(f"y_{i}{j}")
                     # else: # followers
@@ -115,7 +121,7 @@ class SensorNode(Node):
         # 记录所有车的yaw角
         for i in range(1, 5):
             _,_,yaw_i = self.positions[i]
-            sensor_data.append([yaw_i])
+            sensor_data.append([round(yaw_i,4)])
             sensor_info.append(f"yaw_{i}")
 
         # 发布sensor data/info

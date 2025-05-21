@@ -1,8 +1,8 @@
 from setuptools import find_packages, setup
-import os
-from glob import glob
+# import os
+# from glob import glob
 
-package_name = 'fmtctr'
+package_name = 'fm_control'
 
 setup(
     name=package_name,
