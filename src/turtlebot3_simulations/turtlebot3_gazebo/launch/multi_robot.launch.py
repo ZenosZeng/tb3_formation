@@ -30,7 +30,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import PushRosNamespace
 
-CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/formation_config.yml"
+CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/control_config.yml"
 
 
 def get_config_para(param):

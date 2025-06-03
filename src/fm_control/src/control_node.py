@@ -8,7 +8,7 @@ from std_msgs.msg import Float32MultiArray, String
 from geometry_msgs.msg import Twist
 import yaml
 
-CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/formation_config.yml"
+CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/control_config.yml"
 
 
 def get_config_para(param):

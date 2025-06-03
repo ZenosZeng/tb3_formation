@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray, String
 from tf_transformations import euler_from_quaternion
 
-CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/formation_config.yml"
+CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/control_config.yml"
 
 
 def get_config_para(param):
