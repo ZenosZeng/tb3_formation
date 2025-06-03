@@ -17,8 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-#*******************************************************************************
-#***********************     Reboot Example      ***********************
+# *******************************************************************************
+# ***********************     Reboot Example      ***********************
 #  Required Environment to run this example :
 #    - Protocol 2.0 supported DYNAMIXEL(X, P, PRO/PRO(A), MX 2.0 series)
 #    - DYNAMIXEL Starter Set (U2D2, U2D2 PHB, 12V SMPS)
@@ -34,14 +34,18 @@
 
 import os
 
-if os.name == 'nt':
+if os.name == "nt":
     import msvcrt
+
     def getch():
         return msvcrt.getch().decode()
+
 else:
     import sys, tty, termios
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+
     def getch():
         try:
             tty.setraw(sys.stdin.fileno())
@@ -50,21 +54,22 @@ else:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-from dynamixel_sdk import *                 # Uses Dynamixel SDK library
+
+from dynamixel_sdk import *  # Uses Dynamixel SDK library
 
 # DYNAMIXEL Protocol Version (1.0 / 2.0)
 # https://emanual.robotis.com/docs/en/dxl/protocol2/
-PROTOCOL_VERSION            = 2.0
+PROTOCOL_VERSION = 2.0
 
 # Factory default ID of all DYNAMIXEL is 1
-DXL_ID                      = 1
+DXL_ID = 1
 
 # Define the proper baudrate to search DYNAMIXELs. Note that XL320's baudrate is 1 M bps.
-BAUDRATE                = 57600
+BAUDRATE = 57600
 
 # Use the actual port assigned to the U2D2.
 # ex) Windows: "COM*", Linux: "/dev/ttyUSB*", Mac: "/dev/tty.usbserial-*"
-DEVICENAME                  = '/dev/ttyUSB0'
+DEVICENAME = "/dev/ttyUSB0"
 
 # Initialize PortHandler instance
 # Set the port path

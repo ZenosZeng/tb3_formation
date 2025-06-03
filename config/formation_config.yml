@@ -4,7 +4,7 @@ ADJACENCY_MATRIX:
   - [0, 1, 0, 1]
   - [1, 1, 1, 0]
 
-OFFSET: -0.3
+OFFSET: -0.2
 
 DESIRED_DISTANCE_MATRIX:
   - [0, 0, 0, 0]
@@ -22,11 +22,14 @@ INIT_POSE:
   - [-3, -3.5, -3.14]
   - [-1, -2, -3.14]
 
-V_MAX: 0.5
+V_MAX: 0.6
 CONTROL_MODE: 'rigid'
 LPF_RATIO: 0.95
 
 K: 5.0
 ALPHA: 2.0
-BETA: 0.2
+BETA: 0.0
+ 
+TANH_BETA: 0.43 # 用tanh代替sign的beta参数，和BETA不能同时开
+TANH_K: 10
 

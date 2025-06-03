@@ -48,11 +48,15 @@ class GroupBulkRead:
             if self.ph.getProtocolVersion() == 1.0:
                 self.param.extend([data_length, dxl_id, start_addr])
             else:
-                self.param.extend([
-                    dxl_id,
-                    DXL_LOBYTE(start_addr), DXL_HIBYTE(start_addr),
-                    DXL_LOBYTE(data_length), DXL_HIBYTE(data_length)
-                ])
+                self.param.extend(
+                    [
+                        dxl_id,
+                        DXL_LOBYTE(start_addr),
+                        DXL_HIBYTE(start_addr),
+                        DXL_LOBYTE(data_length),
+                        DXL_HIBYTE(data_length),
+                    ]
+                )
         self.is_param_changed = False
 
     def addParam(self, dxl_id, start_address, data_length):
@@ -85,9 +89,13 @@ class GroupBulkRead:
             self.makeParam()
 
         if self.ph.getProtocolVersion() == 1.0:
-            return self.ph.bulkReadTx(self.port, self.param, len(self.data_dict.keys()) * 3, False)
+            return self.ph.bulkReadTx(
+                self.port, self.param, len(self.data_dict.keys()) * 3, False
+            )
         else:
-            return self.ph.bulkReadTx(self.port, self.param, len(self.data_dict.keys()) * 5, False)
+            return self.ph.bulkReadTx(
+                self.port, self.param, len(self.data_dict.keys()) * 5, False
+            )
 
     def fastBulkReadTxPacket(self):
         if len(self.data_dict.keys()) == 0:
@@ -96,7 +104,9 @@ class GroupBulkRead:
         if self.is_param_changed is True or not self.param:
             self.makeParam()
 
-        return self.ph.bulkReadTx(self.port, self.param, len(self.data_dict.keys()) * 5, True)
+        return self.ph.bulkReadTx(
+            self.port, self.param, len(self.data_dict.keys()) * 5, True
+        )
 
     def rxPacket(self):
         self.last_result = False
@@ -107,8 +117,9 @@ class GroupBulkRead:
             return COMM_NOT_AVAILABLE
 
         for dxl_id in self.data_dict:
-            self.data_dict[dxl_id][PARAM_NUM_DATA], result, _ = self.ph.readRx(self.port, dxl_id,
-                                                                               self.data_dict[dxl_id][PARAM_NUM_LENGTH])
+            self.data_dict[dxl_id][PARAM_NUM_DATA], result, _ = self.ph.readRx(
+                self.port, dxl_id, self.data_dict[dxl_id][PARAM_NUM_LENGTH]
+            )
             if result != COMM_SUCCESS:
                 return result
 
@@ -178,7 +189,10 @@ class GroupBulkRead:
 
         start_addr = self.data_dict[dxl_id][PARAM_NUM_ADDRESS]
 
-        if (address < start_addr) or (start_addr + self.data_dict[dxl_id][PARAM_NUM_LENGTH] - data_length < address):
+        if (address < start_addr) or (
+            start_addr + self.data_dict[dxl_id][PARAM_NUM_LENGTH] - data_length
+            < address
+        ):
             return False
 
         return True
@@ -196,6 +210,10 @@ class GroupBulkRead:
         elif data_length == 2:
             return data[idx] | (data[idx + 1] << 8)
         elif data_length == 4:
-            return (data[idx] | (data[idx + 1] << 8) |
-                    (data[idx + 2] << 16) | (data[idx + 3] << 24))
+            return (
+                data[idx]
+                | (data[idx + 1] << 8)
+                | (data[idx + 2] << 16)
+                | (data[idx + 3] << 24)
+            )
         return 0

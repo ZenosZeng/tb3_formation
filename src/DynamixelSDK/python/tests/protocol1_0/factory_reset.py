@@ -36,14 +36,18 @@
 import os
 from time import sleep
 
-if os.name == 'nt':
+if os.name == "nt":
     import msvcrt
+
     def getch():
         return msvcrt.getch().decode()
+
 else:
     import sys, tty, termios
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+
     def getch():
         try:
             tty.setraw(sys.stdin.fileno())
@@ -52,23 +56,24 @@ else:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-from dynamixel_sdk import *                 # Uses Dynamixel SDK library
+
+from dynamixel_sdk import *  # Uses Dynamixel SDK library
 
 # Control table address
-ADDR_MX_BAUDRATE            = 8                 # Control table address is different in Dynamixel model
+ADDR_MX_BAUDRATE = 8  # Control table address is different in Dynamixel model
 
 # Protocol version
-PROTOCOL_VERSION            = 1.0               # See which protocol version is used in the Dynamixel
+PROTOCOL_VERSION = 1.0  # See which protocol version is used in the Dynamixel
 
 # Default setting
-DXL_ID                      = 1                 # Dynamixel ID : 1
-BAUDRATE                    = 57600             # Dynamixel default baudrate : 57600
-DEVICENAME                  = '/dev/ttyUSB0'    # Check which port is being used on your controller
-                                                # ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
+DXL_ID = 1  # Dynamixel ID : 1
+BAUDRATE = 57600  # Dynamixel default baudrate : 57600
+DEVICENAME = "/dev/ttyUSB0"  # Check which port is being used on your controller
+# ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
 
-FACTORYRST_DEFAULTBAUDRATE  = 57600             # Dynamixel baudrate set by factoryreset
-NEW_BAUDNUM                 = 1                 # New baudnum to recover Dynamixel baudrate as it was
-OPERATION_MODE              = 0x00              # Mode is unavailable in Protocol 1.0 Reset
+FACTORYRST_DEFAULTBAUDRATE = 57600  # Dynamixel baudrate set by factoryreset
+NEW_BAUDNUM = 1  # New baudnum to recover Dynamixel baudrate as it was
+OPERATION_MODE = 0x00  # Mode is unavailable in Protocol 1.0 Reset
 
 # Initialize PortHandler instance
 # Set the port path
@@ -105,7 +110,9 @@ print("Now the controller baudrate is : %d" % portHandler.getBaudRate())
 # Try factoryreset
 print("[ID:%03d] Try factoryreset : " % DXL_ID)
 
-dxl_comm_result, dxl_error = packetHandler.factoryReset(portHandler, DXL_ID, OPERATION_MODE)
+dxl_comm_result, dxl_error = packetHandler.factoryReset(
+    portHandler, DXL_ID, OPERATION_MODE
+)
 if dxl_comm_result != COMM_SUCCESS:
     print("Aborted")
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
@@ -120,7 +127,10 @@ print("[ID:%03d] factoryReset Success!" % DXL_ID)
 
 # Set controller baudrate to Dynamixel default baudrate
 if portHandler.setBaudRate(FACTORYRST_DEFAULTBAUDRATE):
-    print("Succeeded to change the controller baudrate to : %d" % FACTORYRST_DEFAULTBAUDRATE)
+    print(
+        "Succeeded to change the controller baudrate to : %d"
+        % FACTORYRST_DEFAULTBAUDRATE
+    )
 else:
     print("Failed to change the controller baudrate")
     print("Press any key to terminate...")
@@ -128,7 +138,9 @@ else:
 
 
 # Read Dynamixel baudnum
-dxl_baudnum_read, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(portHandler, DXL_ID, ADDR_MX_BAUDRATE)
+dxl_baudnum_read, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(
+    portHandler, DXL_ID, ADDR_MX_BAUDRATE
+)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 elif dxl_error != 0:
@@ -137,7 +149,9 @@ else:
     print("[ID:%03d] DXL baudnum is now : %d" % (DXL_ID, dxl_baudnum_read))
 
 # Write new baudnum
-dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, DXL_ID, ADDR_MX_BAUDRATE, NEW_BAUDNUM)
+dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+    portHandler, DXL_ID, ADDR_MX_BAUDRATE, NEW_BAUDNUM
+)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 elif dxl_error != 0:
@@ -156,7 +170,9 @@ else:
 sleep(0.2)
 
 # Read Dynamixel baudnum
-dxl_baudnum_read, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(portHandler, DXL_ID, ADDR_MX_BAUDRATE)
+dxl_baudnum_read, dxl_comm_result, dxl_error = packetHandler.read1ByteTxRx(
+    portHandler, DXL_ID, ADDR_MX_BAUDRATE
+)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 elif dxl_error != 0:

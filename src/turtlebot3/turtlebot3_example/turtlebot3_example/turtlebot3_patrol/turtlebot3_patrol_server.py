@@ -34,20 +34,20 @@ from turtlebot3_msgs.action import Patrol
 
 
 class Turtlebot3PatrolServer(Node):
-
     def __init__(self):
-        super().__init__('turtlebot3_patrol_server')
+        super().__init__("turtlebot3_patrol_server")
 
-        print('TurtleBot3 Patrol Server')
-        print('----------------------------------------------')
+        print("TurtleBot3 Patrol Server")
+        print("----------------------------------------------")
 
         self._action_server = ActionServer(
             self,
             Patrol,
-            'turtlebot3',
+            "turtlebot3",
             self.execute_callback,
             callback_group=ReentrantCallbackGroup(),
-            goal_callback=self.goal_callback)
+            goal_callback=self.goal_callback,
+        )
 
         self.goal_msg = Patrol.Goal()
         self.twist = Twist()
@@ -60,10 +60,10 @@ class Turtlebot3PatrolServer(Node):
 
         qos = QoSProfile(depth=10)
 
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', qos)
+        self.cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", qos)
 
         self.odom_sub = self.create_subscription(
-            Odometry, 'odom', self.odom_callback, qos
+            Odometry, "odom", self.odom_callback, qos
         )
 
     def init_twist(self):
@@ -103,7 +103,7 @@ class Turtlebot3PatrolServer(Node):
             yaw_diff = abs(
                 math.atan2(
                     math.sin(target_yaw - current_yaw),
-                    math.cos(target_yaw - current_yaw)
+                    math.cos(target_yaw - current_yaw),
                 )
             )
 
@@ -122,7 +122,7 @@ class Turtlebot3PatrolServer(Node):
         return GoalResponse.ACCEPT
 
     def execute_callback(self, goal_handle):
-        self.get_logger().info('Executing goal...')
+        self.get_logger().info("Executing goal...")
         feedback_msg = Patrol.Feedback()
 
         length = self.goal_msg.goal.y
@@ -132,12 +132,12 @@ class Turtlebot3PatrolServer(Node):
             if self.goal_msg.goal.x == 1:
                 for count in range(iteration):
                     self.square(feedback_msg, goal_handle, length)
-                feedback_msg.state = 'square patrol complete!!'
+                feedback_msg.state = "square patrol complete!!"
                 break
             elif self.goal_msg.goal.x == 2:
                 for count in range(iteration):
                     self.triangle(feedback_msg, goal_handle, length)
-                feedback_msg.state = 'triangle patrol complete!!'
+                feedback_msg.state = "triangle patrol complete!!"
                 break
 
         goal_handle.succeed()
@@ -145,7 +145,7 @@ class Turtlebot3PatrolServer(Node):
         result.result = feedback_msg.state
 
         self.init_twist()
-        self.get_logger().info('Patrol complete.')
+        self.get_logger().info("Patrol complete.")
         threading.Timer(0.1, rclpy.shutdown).start()
 
         return result
@@ -161,7 +161,7 @@ class Turtlebot3PatrolServer(Node):
             self.go_front(self.position.x, length)
             self.turn(90.0)
 
-            feedback_msg.state = 'line ' + str(i + 1)
+            feedback_msg.state = "line " + str(i + 1)
             goal_handle.publish_feedback(feedback_msg)
             time.sleep(0.1)
 
@@ -178,7 +178,7 @@ class Turtlebot3PatrolServer(Node):
             self.go_front(self.position.x, length)
             self.turn(120.0)
 
-            feedback_msg.state = 'line ' + str(i + 1)
+            feedback_msg.state = "line " + str(i + 1)
             goal_handle.publish_feedback(feedback_msg)
             time.sleep(1)
 
@@ -193,5 +193,5 @@ def main(args=None):
     rclpy.spin(turtlebot3_patrol_server)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

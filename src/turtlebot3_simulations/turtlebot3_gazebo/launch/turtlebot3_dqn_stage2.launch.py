@@ -26,47 +26,46 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    launch_file_dir = os.path.join(get_package_share_directory('turtlebot3_gazebo'), 'launch')
-    pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
+    launch_file_dir = os.path.join(
+        get_package_share_directory("turtlebot3_gazebo"), "launch"
+    )
+    pkg_gazebo_ros = get_package_share_directory("gazebo_ros")
 
-    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
-    x_pose = LaunchConfiguration('x_pose', default='0.0')
-    y_pose = LaunchConfiguration('y_pose', default='0.0')
+    use_sim_time = LaunchConfiguration("use_sim_time", default="true")
+    x_pose = LaunchConfiguration("x_pose", default="0.0")
+    y_pose = LaunchConfiguration("y_pose", default="0.0")
 
     world = os.path.join(
-        get_package_share_directory('turtlebot3_gazebo'),
-        'worlds',
-        'turtlebot3_dqn_stage2.world'
+        get_package_share_directory("turtlebot3_gazebo"),
+        "worlds",
+        "turtlebot3_dqn_stage2.world",
     )
 
     gzserver_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_gazebo_ros, 'launch', 'gzserver.launch.py')
+            os.path.join(pkg_gazebo_ros, "launch", "gzserver.launch.py")
         ),
-        launch_arguments={'world': world}.items()
+        launch_arguments={"world": world}.items(),
     )
 
     gzclient_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_gazebo_ros, 'launch', 'gzclient.launch.py')
+            os.path.join(pkg_gazebo_ros, "launch", "gzclient.launch.py")
         )
     )
 
     robot_state_publisher_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_file_dir, 'robot_state_publisher.launch.py')
+            os.path.join(launch_file_dir, "robot_state_publisher.launch.py")
         ),
-        launch_arguments={'use_sim_time': use_sim_time}.items()
+        launch_arguments={"use_sim_time": use_sim_time}.items(),
     )
 
     spawn_turtlebot_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_file_dir, 'spawn_turtlebot3.launch.py')
+            os.path.join(launch_file_dir, "spawn_turtlebot3.launch.py")
         ),
-        launch_arguments={
-            'x_pose': x_pose,
-            'y_pose': y_pose
-        }.items()
+        launch_arguments={"x_pose": x_pose, "y_pose": y_pose}.items(),
     )
 
     ld = LaunchDescription()

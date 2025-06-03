@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#*******************************************************************************
+# *******************************************************************************
 # Copyright 2017 ROBOTIS CO., LTD.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +15,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#*******************************************************************************
+# *******************************************************************************
 
 
-#*******************************************************************************
-#***********************     Ping Example      ***********************
+# *******************************************************************************
+# ***********************     Ping Example      ***********************
 #  Required Environment to run this example :
 #    - Protocol 2.0 supported DYNAMIXEL(X, P, PRO/PRO(A), MX 2.0 series)
 #    - DYNAMIXEL Starter Set (U2D2, U2D2 PHB, 12V SMPS)
 #  How to use the example :
-#    - Select the DYNAMIXEL in use at the MY_DXL in the example code. 
+#    - Select the DYNAMIXEL in use at the MY_DXL in the example code.
 #    - Build and Run from proper architecture subdirectory.
 #    - For ARM based SBCs such as Raspberry Pi, use linux_sbc subdirectory to build and run.
 #    - https://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_sdk/overview/
@@ -34,14 +34,18 @@
 
 import os
 
-if os.name == 'nt':
+if os.name == "nt":
     import msvcrt
+
     def getch():
         return msvcrt.getch().decode()
+
 else:
     import sys, tty, termios
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+
     def getch():
         try:
             tty.setraw(sys.stdin.fileno())
@@ -50,21 +54,22 @@ else:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-from dynamixel_sdk import *                 # Uses Dynamixel SDK library
+
+from dynamixel_sdk import *  # Uses Dynamixel SDK library
 
 # DYNAMIXEL Protocol Version (1.0 / 2.0)
 # https://emanual.robotis.com/docs/en/dxl/protocol2/
-PROTOCOL_VERSION            = 2.0
+PROTOCOL_VERSION = 2.0
 
 # Define the proper baudrate to search DYNAMIXELs. Note that XL320's baudrate is 1 M bps.
-BAUDRATE                = 57600
+BAUDRATE = 57600
 
 # Factory default ID of all DYNAMIXEL is 1
-DXL_ID                      = 1
+DXL_ID = 1
 
 # Use the actual port assigned to the U2D2.
 # ex) Windows: "COM*", Linux: "/dev/ttyUSB*", Mac: "/dev/tty.usbserial-*"
-DEVICENAME                  = '/dev/ttyUSB0'
+DEVICENAME = "/dev/ttyUSB0"
 
 # Initialize PortHandler instance
 # Set the port path
@@ -103,7 +108,10 @@ if dxl_comm_result != COMM_SUCCESS:
 elif dxl_error != 0:
     print("%s" % packetHandler.getRxPacketError(dxl_error))
 else:
-    print("[ID:%03d] ping Succeeded. Dynamixel model number : %d" % (DXL_ID, dxl_model_number))
+    print(
+        "[ID:%03d] ping Succeeded. Dynamixel model number : %d"
+        % (DXL_ID, dxl_model_number)
+    )
 
 # Close port
 portHandler.closePort()

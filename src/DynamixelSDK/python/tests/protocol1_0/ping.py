@@ -30,14 +30,18 @@
 
 import os
 
-if os.name == 'nt':
+if os.name == "nt":
     import msvcrt
+
     def getch():
         return msvcrt.getch().decode()
+
 else:
     import sys, tty, termios
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
+
     def getch():
         try:
             tty.setraw(sys.stdin.fileno())
@@ -46,16 +50,17 @@ else:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-from dynamixel_sdk import *                 # Uses Dynamixel SDK library
+
+from dynamixel_sdk import *  # Uses Dynamixel SDK library
 
 # Protocol version
-PROTOCOL_VERSION        = 1.0               # See which protocol version is used in the Dynamixel
+PROTOCOL_VERSION = 1.0  # See which protocol version is used in the Dynamixel
 
 # Default setting
-DXL_ID                  = 1                 # Dynamixel ID : 1
-BAUDRATE                = 57600             # Dynamixel default baudrate : 57600
-DEVICENAME              = '/dev/ttyUSB0'    # Check which port is being used on your controller
-                                            # ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
+DXL_ID = 1  # Dynamixel ID : 1
+BAUDRATE = 57600  # Dynamixel default baudrate : 57600
+DEVICENAME = "/dev/ttyUSB0"  # Check which port is being used on your controller
+# ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
 
 # Initialize PortHandler instance
 # Set the port path
@@ -94,7 +99,10 @@ if dxl_comm_result != COMM_SUCCESS:
 elif dxl_error != 0:
     print("%s" % packetHandler.getRxPacketError(dxl_error))
 else:
-    print("[ID:%03d] ping Succeeded. Dynamixel model number : %d" % (DXL_ID, dxl_model_number))
+    print(
+        "[ID:%03d] ping Succeeded. Dynamixel model number : %d"
+        % (DXL_ID, dxl_model_number)
+    )
 
 # Close port
 portHandler.closePort()

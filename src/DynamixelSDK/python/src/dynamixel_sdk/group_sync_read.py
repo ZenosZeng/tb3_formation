@@ -50,7 +50,6 @@ class GroupSyncRead:
 
         self.is_param_changed = False
 
-
     def addParam(self, dxl_id):
         if self.ph.getProtocolVersion() == 1.0:
             return False
@@ -93,7 +92,8 @@ class GroupSyncRead:
             self.data_length,
             self.param,
             len(self.data_dict.keys()) * 1,
-            False)
+            False,
+        )
 
     def fastSyncReadTxPacket(self):
         if self.ph.getProtocolVersion() == 1.0 or len(self.data_dict.keys()) == 0:
@@ -108,7 +108,8 @@ class GroupSyncRead:
             self.data_length,
             self.param,
             len(self.data_dict.keys()) * 1,
-            True)
+            True,
+        )
 
     def rxPacket(self):
         self.last_result = False
@@ -122,7 +123,9 @@ class GroupSyncRead:
             return COMM_NOT_AVAILABLE
 
         for dxl_id in self.data_dict:
-            self.data_dict[dxl_id], result, _ = self.ph.readRx(self.port, dxl_id, self.data_length)
+            self.data_dict[dxl_id], result, _ = self.ph.readRx(
+                self.port, dxl_id, self.data_length
+            )
             if result != COMM_SUCCESS:
                 return result
 
@@ -141,8 +144,12 @@ class GroupSyncRead:
             return COMM_NOT_AVAILABLE
 
         num_devices = len(self.data_dict)
-        rx_param_length = (self.data_length + 4) * num_devices  # Error(1) + ID(1) + Data(N) + CRC(2))
-        raw_data, result, _ = self.ph.fastSyncReadRx(self.port, BROADCAST_ID, rx_param_length)
+        rx_param_length = (
+            self.data_length + 4
+        ) * num_devices  # Error(1) + ID(1) + Data(N) + CRC(2))
+        raw_data, result, _ = self.ph.fastSyncReadRx(
+            self.port, BROADCAST_ID, rx_param_length
+        )
         if result != COMM_SUCCESS:
             return result
 
@@ -155,7 +162,9 @@ class GroupSyncRead:
             if dxl_id not in valid_ids:
                 return COMM_RX_CORRUPT
 
-            self.data_dict[dxl_id] = bytearray(raw_data[start_index + 2 : start_index + 2 + self.data_length])
+            self.data_dict[dxl_id] = bytearray(
+                raw_data[start_index + 2 : start_index + 2 + self.data_length]
+            )
             start_index += self.data_length + 4
 
         self.last_result = True
@@ -181,10 +190,16 @@ class GroupSyncRead:
         return self.fastSyncReadRxPacket()
 
     def isAvailable(self, dxl_id, address, data_length):
-        if self.ph.getProtocolVersion() == 1.0 or self.last_result is False or dxl_id not in self.data_dict:
+        if (
+            self.ph.getProtocolVersion() == 1.0
+            or self.last_result is False
+            or dxl_id not in self.data_dict
+        ):
             return False
 
-        if (address < self.start_address) or (self.start_address + self.data_length - data_length < address):
+        if (address < self.start_address) or (
+            self.start_address + self.data_length - data_length < address
+        ):
             return False
 
         return True
@@ -199,9 +214,10 @@ class GroupSyncRead:
         if data_length == 1:
             return data[start_idx]
         elif data_length == 2:
-            return (data[start_idx] | (data[start_idx + 1] << 8))
+            return data[start_idx] | (data[start_idx + 1] << 8)
         elif data_length == 4:
-            return ((data[start_idx] | (data[start_idx + 1] << 8)) |
-                    ((data[start_idx + 2] | (data[start_idx + 3] << 8)) << 16))
+            return (data[start_idx] | (data[start_idx + 1] << 8)) | (
+                (data[start_idx + 2] | (data[start_idx + 3] << 8)) << 16
+            )
         else:
             return 0

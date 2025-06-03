@@ -32,37 +32,34 @@ from visualization_msgs.msg import InteractiveMarkerControl
 
 
 class Turtlebot3InteractiveMarker(Node):
-
     def __init__(self):
-        super().__init__('turtlebot3_interactive_marker')
+        super().__init__("turtlebot3_interactive_marker")
 
-        print('TurtleBot3 Interactive Markers')
-        print('----------------------------------------------')
-        print('Move red arrows while clicking the arrows')
-        print('Rotate with the circular handles along Z-axis')
-        print('----------------------------------------------')
+        print("TurtleBot3 Interactive Markers")
+        print("----------------------------------------------")
+        print("Move red arrows while clicking the arrows")
+        print("Rotate with the circular handles along Z-axis")
+        print("----------------------------------------------")
 
         qos = QoSProfile(depth=10)
 
         self.odom = Odometry()
         self.goal_position = None
         self.goal_orientation = None
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', qos)
+        self.cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", qos)
 
         self.odom_sub = self.create_subscription(
-            Odometry,
-            'odom',
-            self.odom_callback,
-            qos)
+            Odometry, "odom", self.odom_callback, qos
+        )
 
-        self.server = InteractiveMarkerServer(self, 'turtlebot3_interactive_marker')
+        self.server = InteractiveMarkerServer(self, "turtlebot3_interactive_marker")
 
         self.move_marker = InteractiveMarker()
-        self.move_marker.header.frame_id = 'odom'
-        self.move_marker.name = 'turtlebot3_move_marker'
+        self.move_marker.header.frame_id = "odom"
+        self.move_marker.name = "turtlebot3_move_marker"
 
         move_control = InteractiveMarkerControl()
-        move_control.name = 'move_x'
+        move_control.name = "move_x"
         move_control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
         move_control.always_visible = True
         self.move_marker.controls.append(move_control)
@@ -70,11 +67,11 @@ class Turtlebot3InteractiveMarker(Node):
         self.server.insert(self.move_marker, feedback_callback=self.processMoveFeedback)
 
         rotate_marker = InteractiveMarker()
-        rotate_marker.header.frame_id = 'base_link'
-        rotate_marker.name = 'turtlebot3_rotate_marker'
+        rotate_marker.header.frame_id = "base_link"
+        rotate_marker.name = "turtlebot3_rotate_marker"
 
         rotate_control = InteractiveMarkerControl()
-        rotate_control.name = 'rotate_z'
+        rotate_control.name = "rotate_z"
         rotate_control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
         rotate_control.orientation.w = 1.0
         rotate_control.orientation.x = 0.0
@@ -136,7 +133,7 @@ class Turtlebot3InteractiveMarker(Node):
 
             dx = goal_x - current_x
             dy = goal_y - current_y
-            distance = math.sqrt(dx**2 + dy**2)
+            distance = math.sqrt(dx ** 2 + dy ** 2)
 
             if distance < 0.01:
                 self.goal_position = None
@@ -173,5 +170,5 @@ def main(args=None):
     rclpy.spin(turtlebot3_interactive_marker)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

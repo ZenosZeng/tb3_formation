@@ -25,14 +25,13 @@ from sensor_msgs.msg import LaserScan
 
 
 class Turtlebot3ObstacleDetection(Node):
-
     def __init__(self):
-        super().__init__('turtlebot3_obstacle_detection')
-        print('TurtleBot3 Obstacle Detection - Auto Move Enabled')
-        print('----------------------------------------------')
-        print('stop angle: -90 ~ 90 deg')
-        print('stop distance: 0.5 m')
-        print('----------------------------------------------')
+        super().__init__("turtlebot3_obstacle_detection")
+        print("TurtleBot3 Obstacle Detection - Auto Move Enabled")
+        print("----------------------------------------------")
+        print("stop angle: -90 ~ 90 deg")
+        print("stop distance: 0.5 m")
+        print("----------------------------------------------")
 
         self.scan_ranges = []
         self.has_scan_received = False
@@ -44,19 +43,18 @@ class Turtlebot3ObstacleDetection(Node):
 
         qos = QoSProfile(depth=10)
 
-        self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', qos)
+        self.cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", qos)
 
         self.scan_sub = self.create_subscription(
-            LaserScan,
-            'scan',
-            self.scan_callback,
-            qos_profile=qos_profile_sensor_data)
+            LaserScan, "scan", self.scan_callback, qos_profile=qos_profile_sensor_data
+        )
 
         self.cmd_vel_raw_sub = self.create_subscription(
             Twist,
-            'cmd_vel_raw',
+            "cmd_vel_raw",
             self.cmd_vel_raw_callback,
-            qos_profile=qos_profile_sensor_data)
+            qos_profile=qos_profile_sensor_data,
+        )
 
         self.timer = self.create_timer(0.1, self.timer_callback)
 
@@ -76,15 +74,16 @@ class Turtlebot3ObstacleDetection(Node):
         right_range = int(len(self.scan_ranges) * 3 / 4)
 
         obstacle_distance = min(
-            min(self.scan_ranges[0:left_range]),
-            min(self.scan_ranges[right_range:360])
+            min(self.scan_ranges[0:left_range]), min(self.scan_ranges[right_range:360])
         )
 
         twist = Twist()
         if obstacle_distance < self.stop_distance:
             twist.linear.x = 0.0
             twist.angular.z = self.tele_twist.angular.z
-            self.get_logger().info('Obstacle detected! Stopping.', throttle_duration_sec=2)
+            self.get_logger().info(
+                "Obstacle detected! Stopping.", throttle_duration_sec=2
+            )
         else:
             twist = self.tele_twist
 
@@ -100,5 +99,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

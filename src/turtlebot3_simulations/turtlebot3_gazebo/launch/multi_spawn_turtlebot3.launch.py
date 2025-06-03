@@ -24,40 +24,49 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    TURTLEBOT3_MODEL = os.environ['TURTLEBOT3_MODEL']
+    TURTLEBOT3_MODEL = os.environ["TURTLEBOT3_MODEL"]
 
-    x_pose = LaunchConfiguration('x_pose', default='0.0')
-    y_pose = LaunchConfiguration('y_pose', default='0.0')
-    yaw_pose = LaunchConfiguration('yaw_pose', default='0.0')  # 新增 yaw 参数
-    robot_name = LaunchConfiguration('robot_name', default=TURTLEBOT3_MODEL)
-    namespace = LaunchConfiguration('namespace', default='')
-    sdf_path = LaunchConfiguration('sdf_path', default='')
+    x_pose = LaunchConfiguration("x_pose", default="0.0")
+    y_pose = LaunchConfiguration("y_pose", default="0.0")
+    yaw_pose = LaunchConfiguration("yaw_pose", default="0.0")  # 新增 yaw 参数
+    robot_name = LaunchConfiguration("robot_name", default=TURTLEBOT3_MODEL)
+    namespace = LaunchConfiguration("namespace", default="")
+    sdf_path = LaunchConfiguration("sdf_path", default="")
 
     declare_x_position_cmd = DeclareLaunchArgument(
-        'x_pose', default_value='0.0',
-        description='Specify namespace of the robot')
+        "x_pose", default_value="0.0", description="Specify namespace of the robot"
+    )
 
     declare_y_position_cmd = DeclareLaunchArgument(
-        'y_pose', default_value='0.0',
-        description='Specify namespace of the robot')
-    
+        "y_pose", default_value="0.0", description="Specify namespace of the robot"
+    )
+
     declare_yaw_position_cmd = DeclareLaunchArgument(  # 新增 yaw 参数声明
-        'yaw_pose', default_value='0.0',
-        description='Specify the yaw orientation of the robot')
+        "yaw_pose",
+        default_value="0.0",
+        description="Specify the yaw orientation of the robot",
+    )
 
     start_gazebo_ros_spawner_cmd = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
+        package="gazebo_ros",
+        executable="spawn_entity.py",
         arguments=[
-            '-entity', robot_name,
-            '-file', sdf_path,
-            '-x', x_pose,
-            '-y', y_pose,
-            '-z', '0.01',
-            '-Y', yaw_pose,  # 传递 yaw 参数
-            '-robot_namespace', namespace
+            "-entity",
+            robot_name,
+            "-file",
+            sdf_path,
+            "-x",
+            x_pose,
+            "-y",
+            y_pose,
+            "-z",
+            "0.01",
+            "-Y",
+            yaw_pose,  # 传递 yaw 参数
+            "-robot_namespace",
+            namespace,
         ],
-        output='screen',
+        output="screen",
     )
 
     ld = LaunchDescription()
