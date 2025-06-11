@@ -9,7 +9,7 @@ def sign(x):
     return np.where(x > 0, 1, np.where(x < 0, -1, 0))
 
 # 定义多个 tanh(kx) 近似函数
-k_values = [1,10,50]
+k_values = [1,2,3,10,50]
 tanh_curves = [np.tanh(k * x) for k in k_values]
 
 # 画图

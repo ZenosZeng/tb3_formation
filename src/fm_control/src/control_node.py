@@ -1,5 +1,7 @@
-from math import sqrt, cos, sin, atan2
-import math
+import os
+import csv
+from datetime import datetime
+from math import cos, sin, atan2
 
 import rclpy
 import numpy as np
@@ -8,105 +10,69 @@ from std_msgs.msg import Float32MultiArray, String
 from geometry_msgs.msg import Twist
 import yaml
 
+from common.utils import saturation, u2vw_global, sign, tanh_sign
+
+# 配置文件的绝对路径（偷懒写法）
 CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/control_config.yml"
-
-
-def get_config_para(param):
-    """
-    加载全局config文件中的参数，用绝对路径
-    """
-    with open(CONFIG_PATH, "r", encoding="UTF-8") as file:
-        config = yaml.safe_load(file)
-
-    return config[param]
-
-
-def saturation(x, bound):
-    """
-    限制输入值在给定范围内
-    """
-    x = np.array(x)
-    x_m = np.linalg.norm(x)
-    if x_m > bound:
-        return x / x_m * bound
-    else:
-        return x
-
-
-def sign(x):
-    x = np.array(x)
-    y = []
-    for number in x:
-        if number > 0:
-            y.append(1)
-        elif number < 0:
-            y.append(-1)
-        else:
-            y.append(0)
-    return np.array(y)
-
-
-def tanh_sign(x, k):
-    x = np.array(x)
-    return np.tanh(k * x)
-
-
-def wrap_to_pi(angle):
-    while angle > math.pi:
-        angle -= 2 * math.pi
-    while angle < -math.pi:
-        angle += 2 * math.pi
-    return angle
-
-
-def u2vw_global(u, theta, offset):
-    speed = sqrt(u[0] ** 2 + u[1] ** 2)
-    # 如果速度太小 直接return
-    if speed < 1e-3:
-        return np.array([0.0, 0.0])
-
-    # 投影到前向方向的线速度
-    v = u[0] * math.cos(theta) + u[1] * math.sin(theta)
-    # 朝向误差控制角速度
-    omega = (u[0] * -math.sin(theta) + u[1] * math.cos(theta)) / offset
-
-    return np.array([v, omega])
-
+RECORD_PATH = "/home/zenos/ws/tb3_formation/data"
 
 class ControlNode(Node):
     def __init__(self):
         super().__init__("control_node")
 
         # 读取配置文件
-        self._num_robots = get_config_para("NUM_OF_ROBOTS")
-        self._adjacency_matrix = get_config_para("ADJACENCY_MATRIX")  # 读取邻接矩阵
-        self._distance_matrix = get_config_para("DESIRED_DISTANCE_MATRIX")  # 读取距离矩阵
-        self._offset = get_config_para("OFFSET")  # 读取偏移量
-        self._v_max = get_config_para("V_MAX")
-        self.control_mode = get_config_para("CONTROL_MODE")
-        self.lpf_ratio = get_config_para("LPF_RATIO")
+        with open(CONFIG_PATH, "r", encoding="UTF-8") as file:
+            config = yaml.safe_load(file)
+ 
+        self._num_robots = config["NUM_OF_ROBOTS"]
+        self._adjacency_matrix = config["ADJACENCY_MATRIX"]  # 读取邻接矩阵
+        self._distance_matrix = config["DESIRED_DISTANCE_MATRIX"]  # 读取距离矩阵
+        self._offset = config["OFFSET"]  # 读取偏移量
+        self._v_max = config["V_MAX"]
+        self._control_mode = config["CONTROL_MODE"]
+        self._lpf_ratio = config["LPF_RATIO"]
 
-        self._k = get_config_para("K")
-        self._alpha = get_config_para("ALPHA")
-        self._beta = get_config_para("BETA")
+        self._k = config["K"]
+        self._alpha = config["ALPHA"]
+        self._beta = config["BETA"]
 
-        self._tanh_beta = get_config_para("TANH_BETA")
-        self._tanh_k = get_config_para("TANH_K")
+        self._tanh_beta = config["TANH_BETA"]
+        self._tanh_k = config["TANH_K"]
 
-        self.get_logger().info("Config loaded.")
+        self.get_logger().info("1 Config loaded.")
 
         # 一次性读取 /sensor_info 的数据
         self.sensor_info = self.get_sensor_info()
-        self.get_logger().info(f"Sensor info: {self.sensor_info}")
+        self.get_logger().info(f"2 Sensor info received: {self.sensor_info}")
 
-        # 订阅sensor_node的data和info
+        # 订阅 /sensor_data
         self.subscription = self.create_subscription(
             Float32MultiArray, "/sensor_data", self.sensor_callback, 10
         )
         self._sensor_data = {}
 
-        # 控制器的定时器
-        self.timer = self.create_timer(0.001, self.control_loop)
+        # 计时器
+        self.last_control_time = self.get_clock().now()
+        self.last_print_time = self.get_clock().now()
+        self.origin_time = self.get_clock().now()
+
+        # 控制循环的定时器 1000hz
+        self.controller_timer = self.create_timer(0.001, self.control_loop)
+
+        # 记录循环的定时器 50hz
+        self.record_timer = self.create_timer(0.02, self.record_loop)
+        self.d_error_dic = {}
+        self.orientation_error = 0.0
+        self.record_table = []
+
+        # 记录文件输出循环的定时器 0.5hz
+        self.output_timer = self.create_timer(2.0, self.output_loop)
+        dt = datetime.fromtimestamp(self.origin_time.nanoseconds / 1e9)
+        time_str = dt.strftime("%Y%m%d_%H%M%S")
+        self._data_dir = RECORD_PATH + f"/{time_str}"
+        os.makedirs(self._data_dir, exist_ok=True)  # 确保数据目录存在
+
+        self.get_logger().info("3 Timer created.")
 
         # 创建四个tb的cmd发布器
         self.cmd_publishers = {
@@ -116,31 +82,22 @@ class ControlNode(Node):
             4: self.create_publisher(Twist, "/robot_4/cmd_vel", 10),
         }
 
-        # 创建定时器，控制消息发布的时间间隔
-        self.last_publish_time = self.get_clock().now()
-        self.last_print_time = self.get_clock().now()
-        self.origin_time = self.get_clock().now()
-        self.current_time = self.get_clock().now()
-
-        # 创建指令buffer 用于滤波 LPF
+        # 创建指令buffer 用于cmd的LPF
         self.u_buffer = [[0, 0] for i in range(4)]
+        self.actual_freq = 1000
 
-        self.get_logger().info("Control node started.")
-
-        rclpy.get_default_context().on_shutdown(self.stop_all_robots)
+        self.get_logger().info("Control node running...")
 
     def stop_all_robots(self):
-        self.get_logger().info("Shutting down, stopping all robots...")
+        self.get_logger().info("Stopping all robots...")
         stop_msg = Twist()
         stop_msg.linear.x = 0.0
+        stop_msg.linear.y = 0.0
         stop_msg.angular.z = 0.0
-        for pub in self.cmd_publishers.values():
-            pub.publish(stop_msg)
+        for i in range(1, self._num_robots + 1):
+            self.cmd_publishers[i].publish(stop_msg)
 
     def get_sensor_info(self):
-        """
-        一次性读取 /sensor_info 的数据
-        """
         self.get_logger().info("Waiting for /sensor_info message...")
 
         # 定义一个 Future 对象，用于等待消息
@@ -173,25 +130,33 @@ class ControlNode(Node):
         self._sensor_data = sensor_dict
 
     def reference_motion(self, t, d_12):
-        # 调整椭圆轨迹的参数
-        a, b = 0.3, 0.2  # 椭圆的长轴和短轴，增大a和b可以放大椭圆
-        omega = 0.1  # 椭圆运动的角速度，减小omega可以增加周期
+        if t<8:
+            # 前5s走直线
+            vd = [0.3, 0.0]
+            po_d = [d_12, 0.0]  # 期望位置
+            po_d_dot = [0.0, 0.0]  # 期望位置的导数
+            return (vd, po_d, po_d_dot)
+        
+        t-=8
 
-        vx = a * cos(omega * t)
-        vy = b * sin(omega * t)
+        # 圆轨迹
+        a = 5 # 圆半径
+        omega = 0.05 # 椭圆运动的角速度，减小omega可以增加周期
+
+        vx = a * omega * cos(omega * t)
+        vy = a * omega * sin(omega * t)
 
         theta = atan2(vy, vx)
-        dtheta = b / a * (1 / cos(omega * t) ** 2) * omega
+        dtheta = (1 / cos(omega * t) ** 2) * omega
 
         vd = np.array([vx, vy])
-
         po_d = [d_12 * cos(theta), d_12 * sin(theta)]
         po_d_dot = [-d_12 * sin(theta) * dtheta, d_12 * cos(theta) * dtheta]
 
         return (vd, po_d, po_d_dot)
 
     def get_t_since_origin(self):
-        return (self.current_time.nanoseconds - self.origin_time.nanoseconds) / 1e9
+        return (self.get_clock().now().nanoseconds - self.origin_time.nanoseconds) / 1e9
 
     def control_loop(self):
         if not self._sensor_data:
@@ -221,12 +186,9 @@ class ControlNode(Node):
                 if self._adjacency_matrix[i][j] == 0 or i == j:  # 不是邻居
                     continue
                 else:  # 是邻居
-                    # if i==1: # co-leader 读取的相对位置是全局坐标
                     p_ij = np.array(
                         [sensor_dic[f"x_{i+1}{j+1}"], sensor_dic[f"y_{i+1}{j+1}"]]
                     )
-                    # else: # followers  读取的相对位置是local坐标
-                    #     p_ij = np.array([sensor_dic[f'x_{i+1}{j+1}_local'],sensor_dic[f'y_{i+1}{j+1}_local']])
 
                     d = self._distance_matrix[i][j]  # desired distance
                     p_ij_m = np.linalg.norm(p_ij)  # L2 norm
@@ -234,15 +196,17 @@ class ControlNode(Node):
                     r_j = p_ij * sigma_ij
                     r[i] = np.add(r[i], r_j)
 
+                    # 记录距离误差
+                    key = f"d{i+1}{j+1}_err"
+                    self.d_error_dic[key] = p_ij_m - d
+
         # 方向误差
         po = np.array([-sensor_dic["x_21"], -sensor_dic["y_21"]])  # p1-p2
         po_bar = po - po_d
+        self.orientation_error = np.linalg.norm(po_bar)
 
         # SI控制律设计
-        control_mode = self.control_mode  # 可以随任务修改
-        v_max = self._v_max
-
-        if control_mode == "rigid":  # 刚性编队定向跟踪控制器
+        if self._control_mode == "rigid":  # 刚性编队定向跟踪控制器
             for i in range(self._num_robots):
                 if i == 0:
                     u[i] = vd
@@ -253,15 +217,15 @@ class ControlNode(Node):
                         / (np.linalg.norm(r[i] - alpha * po_bar) ** 2)
                     )
                     u[i] = -(k - eta) * (r[i] - alpha * po_bar) + vd
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
                 else:
                     u[i] = (
                         -k * r[i]
                         - beta * sign(r[i])
                         - tanh_beta * tanh_sign(r[i], tanh_k)
                     )
-                    u[i] = saturation(u[i], v_max)
-        elif control_mode == "rp":  # 相对位置控制器，测试用
+                    u[i] = saturation(u[i], self._v_max)
+        elif self._control_mode == "rp":  # 相对位置控制器，测试用
             for i in range(self._num_robots):
                 if i == 0:
                     u[i] = vd
@@ -270,20 +234,20 @@ class ControlNode(Node):
                     desired_p_ij = [-2, 0]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
                 elif i == 2:
                     p_ij = np.array([sensor_dic["x_32"], sensor_dic["y_32"]])
                     desired_p_ij = [0, -1]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
                 elif i == 3:
                     p_ij = np.array([sensor_dic["x_41"], sensor_dic["y_41"]])
                     desired_p_ij = [0, -1]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar
-                    u[i] = saturation(u[i], v_max)
-        elif control_mode == "rp_ff":  # 相对位置控制器+vd前馈
+                    u[i] = saturation(u[i], self._v_max)
+        elif self._control_mode == "rp_ff":  # 相对位置控制器+vd前馈
             for i in range(self._num_robots):
                 if i == 0:
                     u[i] = vd
@@ -292,26 +256,26 @@ class ControlNode(Node):
                     desired_p_ij = [-2, 0]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar + vd
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
                 elif i == 2:
                     p_ij = np.array([sensor_dic["x_32"], sensor_dic["y_32"]])
                     desired_p_ij = [0, -1]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar + vd
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
                 elif i == 3:
                     p_ij = np.array([sensor_dic["x_41"], sensor_dic["y_41"]])
                     desired_p_ij = [0, -1]
                     p_ij_bar = p_ij - desired_p_ij
                     u[i] = -k * p_ij_bar + vd
-                    u[i] = saturation(u[i], v_max)
+                    u[i] = saturation(u[i], self._v_max)
 
         # 给速度指令加一个低通滤波
         for i in range(4):
             for j in range(2):
                 self.u_buffer[i][j] = (
-                    self.lpf_ratio * u[i][j]
-                    + (1 - self.lpf_ratio) * self.u_buffer[i][j]
+                    self._lpf_ratio * u[i][j]
+                    + (1 - self._lpf_ratio) * self.u_buffer[i][j]
                 )
 
         # Unicycle控制律映射
@@ -329,38 +293,65 @@ class ControlNode(Node):
             self.cmd_publishers[i + 1].publish(twist)
 
         # 计算控制器的发布频率
-        self.current_time = self.get_clock().now()
-        dt = (self.current_time - self.last_publish_time).nanoseconds / 1e9
-        self.last_publish_time = self.current_time
+        dt = (self.get_clock().now() - self.last_control_time).nanoseconds / 1e9
+        self.last_control_time = self.get_clock().now()
         if dt < 1e-9:
-            freq = 0
+            self.actual_freq = None
         else:
-            freq = round(1 / dt, 2)
+            self.actual_freq = round(1 / dt, 2)
 
         # 按照0.5Hz打印传控制器数据
-        t_since_last_print = (
-            self.current_time - self.last_print_time
-        ).nanoseconds / 1e9
+        t_since_last_print = (self.get_clock().now() - self.last_print_time).nanoseconds / 1e9
         if t_since_last_print >= 2:
-            self.last_print_time = self.current_time
-            self.get_logger().info(
-                f"**********{self.get_t_since_origin():.2f}s**********"
-            )
-            self.get_logger().info(f"Controller freq: {freq} Hz")
-            # for i in range(self._num_robots):
-            #     self.get_logger().info(vnw[i])
+            self.last_print_time = self.get_clock().now()
+            self.get_logger().info(f"**********{self.get_t_since_origin():.2f}s**********")
+            self.get_logger().info(f"Controller freq: {self.actual_freq} Hz")
 
+    def record_loop(self):
+        # 将仿真时间、距离误差和方向误差存入record_table
+        row = []
+        headers = []
+
+        headers.append("t")
+        row.append(round(self.get_t_since_origin(),3))
+
+        headers.append("freq")
+        row.append(self.actual_freq)
+
+        for key, value in self.d_error_dic.items():
+            headers.append(key)
+            row.append(value)
+        headers.append("o_error")
+        row.append(self.orientation_error)
+
+        # 如果record_table为空，先写表头
+        if not self.record_table:
+            self.record_table.append(headers)
+        self.record_table.append(row)
+
+    def output_loop(self):
+        # 输出record_table到csv文件
+        if not self.record_table:
+            self.get_logger().info("No data to output.")
+            return
+
+        output_file = os.path.join(
+            self._data_dir, "control_log.csv"
+        )
+
+        # 如果文件已存在，先清空内容（以写模式打开会自动清空）
+        with open(output_file, "w", newline="", encoding='UTF-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(self.record_table)
+
+        self.get_logger().info(f"Data output to {output_file}")
 
 def main(args=None):
-    """
-    ros2 node入口
-    """
     rclpy.init(args=args)
     node = ControlNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()

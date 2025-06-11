@@ -7,13 +7,11 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float32MultiArray, String
 from tf_transformations import euler_from_quaternion
 
+# 控制配置文件的绝对路径（偷懒写法）
 CONFIG_PATH = "/home/zenos/ws/tb3_formation/config/control_config.yml"
 
 
 def get_config_para(param):
-    """
-    加载全局config文件中的参数，用绝对路径
-    """
     with open(CONFIG_PATH, "r", encoding="UTF-8") as file:
         config = yaml.safe_load(file)
 

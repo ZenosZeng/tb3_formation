@@ -1,10 +1,12 @@
 # Ignore build, install, and log directories
-/build/
-/install/
-/log/
-/.vscode/
+build/
+install/
+log/
+.vscode/
+data/
 
 # Optionally, ignore other files you don't want to track
 *.pyc
 *.pyo
 *.vscode
+*/__pycache/
