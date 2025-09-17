@@ -3,7 +3,6 @@ build/
 install/
 log/
 .vscode/
-data/
 
 # Optionally, ignore other files you don't want to track
 *.pyc
